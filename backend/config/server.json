@@ -5,6 +5,6 @@
   "mac": "b4:2e:99:47:f3:7f",
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
-  "wakeCommand": "wakeonlan {mac}",
+  "wakeCommand": "wake -a {broadcastAddress} -p {port} {mac}",
   "wakePort": 9
 }

@@ -8,7 +8,8 @@ import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 
 const MAC_ADDRESS_PATTERN = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i;
-const DEFAULT_WAKE_COMMAND = 'wakeonlan';
+const DEFAULT_WAKE_COMMAND = 'wake -a {broadcastAddress} -p {port} {mac}';
+const DEFAULT_WAKE_PORT = 9;
 const WAKE_COMMAND_TIMEOUT_MS = 10000;
 
 const execAsync = promisify(exec);
@@ -49,9 +50,20 @@ export class WakeOnLanService {
   private buildWakeCommand(serverConfig: ServerConfig): string {
     const wakeCommand = serverConfig.wakeCommand?.trim() || DEFAULT_WAKE_COMMAND;
     const escapedMacAddress = this.escapeShellArgument(serverConfig.mac);
+    const escapedBroadcastAddress = this.escapeShellArgument(
+      this.getBroadcastAddress(serverConfig) ?? '255.255.255.255',
+    );
+    const escapedWakePort = this.escapeShellArgument(String(serverConfig.wakePort ?? DEFAULT_WAKE_PORT));
 
-    if (wakeCommand.includes('{mac}')) {
-      return wakeCommand.replaceAll('{mac}', escapedMacAddress);
+    if (
+      wakeCommand.includes('{broadcastAddress}') ||
+      wakeCommand.includes('{mac}') ||
+      wakeCommand.includes('{port}')
+    ) {
+      return wakeCommand
+        .replaceAll('{broadcastAddress}', escapedBroadcastAddress)
+        .replaceAll('{mac}', escapedMacAddress)
+        .replaceAll('{port}', escapedWakePort);
     }
 
     return `${this.escapeShellCommand(wakeCommand)} ${escapedMacAddress}`;
@@ -66,6 +78,20 @@ export class WakeOnLanService {
 
   private isValidMacAddress(macAddress: string): boolean {
     return MAC_ADDRESS_PATTERN.test(macAddress);
+  }
+
+  private getBroadcastAddress(serverConfig: ServerConfig): string | undefined {
+    return serverConfig.broadcastAddress ?? this.getDefaultIpv4BroadcastAddress(serverConfig.ip);
+  }
+
+  private getDefaultIpv4BroadcastAddress(ipAddress: string): string | undefined {
+    const octets = ipAddress.split('.');
+
+    if (octets.length !== 4 || !octets.every((octet) => /^\d{1,3}$/.test(octet))) {
+      return undefined;
+    }
+
+    return `${octets[0]}.${octets[1]}.${octets[2]}.255`;
   }
 
   private escapeShellCommand(value: string): string {

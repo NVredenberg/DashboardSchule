@@ -32,7 +32,7 @@ Die Serverdaten liegen in `backend/config/server.json`.
   "mac": "b4:2e:99:47:f3:7f",
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
-  "wakeCommand": "wakeonlan {mac}",
+  "wakeCommand": "wake -a {broadcastAddress} -p {port} {mac}",
   "wakePort": 9
 }
 ```
@@ -41,13 +41,13 @@ Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Z
 
 ## Wake-on-LAN
 
-Das Backend startet Gandalf bevorzugt mit dem lokal verfuegbaren Befehl:
+Das Backend startet Gandalf mit dem vom Projekt mitgelieferten Befehl:
 
 ```bash
-wakeonlan b4:2e:99:47:f3:7f
+wake -a 172.16.10.255 -p 9 b4:2e:99:47:f3:7f
 ```
 
-Der Befehl muss in der Umgebung verfuegbar sein, in der das Backend laeuft. Wenn das Backend direkt auf Windows laeuft, ist das der Windows-PATH. Wenn das Backend in Docker laeuft, muss `wakeonlan` im Container installiert sein oder das Backend ausserhalb des Containers gestartet werden.
+Der Befehl `wake` kommt aus der Backend-Abhaengigkeit `wake_on_lan` und ist damit auch im Backend-Container verfuegbar. Wenn stattdessen bewusst der lokal installierte Befehl `wakeonlan` verwendet werden soll, kann `wakeCommand` entsprechend angepasst werden.
 
 Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/server.json` ein voller Pfad gesetzt werden:
 
