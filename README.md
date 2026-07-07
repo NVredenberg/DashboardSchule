@@ -32,6 +32,7 @@ Die Serverdaten liegen in `backend/config/server.json`.
   "mac": "b4:2e:99:47:f3:7f",
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
+  "wakeCommand": "wakeonlan {mac}",
   "wakePort": 9
 }
 ```
@@ -48,11 +49,11 @@ wakeonlan b4:2e:99:47:f3:7f
 
 Der Befehl muss in der Umgebung verfuegbar sein, in der das Backend laeuft. Wenn das Backend direkt auf Windows laeuft, ist das der Windows-PATH. Wenn das Backend in Docker laeuft, muss `wakeonlan` im Container installiert sein oder das Backend ausserhalb des Containers gestartet werden.
 
-Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/server.json` optional ein voller Pfad gesetzt werden:
+Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/server.json` ein voller Pfad gesetzt werden:
 
 ```json
 {
-  "wakeCommand": "C:\\\\Pfad\\\\zu\\\\wakeonlan.exe"
+  "wakeCommand": "\"C:\\\\Pfad\\\\zu\\\\wakeonlan.exe\" {mac}"
 }
 ```
 
