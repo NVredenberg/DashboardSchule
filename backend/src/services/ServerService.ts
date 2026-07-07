@@ -1,20 +1,22 @@
 import type { StartServerResponse } from '../types/StartServerResponse.js';
 import type { ServerResponse } from '../types/ServerResponse.js';
 import type { ConfigService } from './ConfigService.js';
+import type { ServerReachabilityService } from './ServerReachabilityService.js';
 import type { WakeOnLanService } from './WakeOnLanService.js';
 
 export class ServerService {
   public constructor(
     private readonly configService: ConfigService,
+    private readonly serverReachabilityService: ServerReachabilityService,
     private readonly wakeOnLanService: WakeOnLanService,
   ) {}
 
-  public getServer(): ServerResponse {
+  public async getServer(): Promise<ServerResponse> {
     const serverConfig = this.configService.getServerConfig();
 
     return {
       name: serverConfig.serverName,
-      online: false,
+      online: await this.serverReachabilityService.isOnline(serverConfig),
     };
   }
 

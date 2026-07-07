@@ -1,3 +1,7 @@
+import { exec } from 'node:child_process';
+import { platform } from 'node:os';
+import { promisify } from 'node:util';
+
 import wakeOnLan from 'wake_on_lan';
 
 import type { StartServerResponse } from '../types/StartServerResponse.js';
@@ -6,7 +10,11 @@ import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 
 const MAC_ADDRESS_PATTERN = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i;
+const DEFAULT_WAKE_COMMAND = 'wakeonlan';
 const DEFAULT_WAKE_PORT = 9;
+const WAKE_COMMAND_TIMEOUT_MS = 10000;
+
+const execAsync = promisify(exec);
 
 type WakeOptions = {
   address?: string;
@@ -20,12 +28,14 @@ export class WakeOnLanService {
     }
 
     try {
-      await this.sendWakePacket(serverConfig.mac, this.getWakeOptions(serverConfig));
+      const wakeMethod = await this.wake(serverConfig);
 
       logger.info('Wake-on-LAN packet sent', {
         broadcastAddress: this.getBroadcastAddress(serverConfig),
+        method: wakeMethod,
         serverName: serverConfig.serverName,
         serverIp: serverConfig.ip,
+        wakeCommand: serverConfig.wakeCommand ?? DEFAULT_WAKE_COMMAND,
         wakePort: serverConfig.wakePort ?? DEFAULT_WAKE_PORT,
       });
 
@@ -42,6 +52,39 @@ export class WakeOnLanService {
 
       throw this.createWakeOnLanError('Startsignal konnte nicht gesendet werden', error);
     }
+  }
+
+  private async wake(serverConfig: ServerConfig): Promise<'command' | 'node-library'> {
+    try {
+      await this.sendWakeCommand(serverConfig);
+
+      return 'command';
+    } catch (error) {
+      if (!this.canFallBackToNodeLibrary(serverConfig, error)) {
+        throw error;
+      }
+
+      logger.warn('wakeonlan command is unavailable, falling back to Node Wake-on-LAN library', {
+        error: error instanceof Error ? error.message : String(error),
+        wakeCommand: DEFAULT_WAKE_COMMAND,
+      });
+
+      await this.sendWakePacket(serverConfig.mac, this.getWakeOptions(serverConfig));
+
+      return 'node-library';
+    }
+  }
+
+  private async sendWakeCommand(serverConfig: ServerConfig): Promise<void> {
+    const command = [
+      this.escapeShellArgument(serverConfig.wakeCommand ?? DEFAULT_WAKE_COMMAND),
+      this.escapeShellArgument(serverConfig.mac),
+    ].join(' ');
+
+    await execAsync(command, {
+      timeout: WAKE_COMMAND_TIMEOUT_MS,
+      windowsHide: true,
+    });
   }
 
   private sendWakePacket(macAddress: string, options: WakeOptions): Promise<void> {
@@ -80,6 +123,31 @@ export class WakeOnLanService {
 
   private isValidMacAddress(macAddress: string): boolean {
     return MAC_ADDRESS_PATTERN.test(macAddress);
+  }
+
+  private escapeShellArgument(value: string): string {
+    if (platform() === 'win32') {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+
+    return `'${value.replace(/'/g, "'\\''")}'`;
+  }
+
+  private canFallBackToNodeLibrary(serverConfig: ServerConfig, error: unknown): boolean {
+    return serverConfig.wakeCommand === undefined && this.isCommandUnavailable(error);
+  }
+
+  private isCommandUnavailable(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    return (
+      'code' in error ||
+      /not recognized|not found|not found as an internal or external command|ENOENT/i.test(
+        error.message,
+      )
+    );
   }
 
   private createWakeOnLanError(message: string, cause?: unknown): AppError {

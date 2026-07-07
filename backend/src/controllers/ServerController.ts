@@ -5,9 +5,13 @@ import type { ServerService } from '../services/ServerService.js';
 export class ServerController {
   public constructor(private readonly serverService: ServerService) {}
 
-  public getServer = (_request: Request, response: Response, next: NextFunction): void => {
+  public getServer = async (
+    _request: Request,
+    response: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
-      response.status(200).json(this.serverService.getServer());
+      response.status(200).json(await this.serverService.getServer());
     } catch (error) {
       next(error);
     }

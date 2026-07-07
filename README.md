@@ -30,6 +30,7 @@ Die Serverdaten liegen in `backend/config/server.json`.
   "ip": "172.16.10.250",
   "broadcastAddress": "172.16.10.255",
   "mac": "b4:2e:99:47:f3:7f",
+  "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
   "wakePort": 9
 }
@@ -38,6 +39,22 @@ Die Serverdaten liegen in `backend/config/server.json`.
 Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Zielserver Gandalf. `broadcastAddress` und `wakePort` steuern, wohin das Startsignal gesendet wird. Wenn keine Broadcast-Adresse gesetzt ist, leitet das Backend sie aus der Gandalf-IP als `/24`-Adresse ab.
 
 ## Wake-on-LAN
+
+Das Backend startet Gandalf bevorzugt mit dem lokal verfuegbaren Befehl:
+
+```bash
+wakeonlan b4:2e:99:47:f3:7f
+```
+
+Der Befehl muss in der Umgebung verfuegbar sein, in der das Backend laeuft. Wenn das Backend direkt auf Windows laeuft, ist das der Windows-PATH. Wenn das Backend in Docker laeuft, muss `wakeonlan` im Container installiert sein oder das Backend ausserhalb des Containers gestartet werden.
+
+Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/server.json` optional ein voller Pfad gesetzt werden:
+
+```json
+{
+  "wakeCommand": "C:\\\\Pfad\\\\zu\\\\wakeonlan.exe"
+}
+```
 
 Das Dashboard ruft diesen Endpunkt auf:
 
@@ -50,11 +67,21 @@ Bei Erfolg antwortet das Backend:
 ```json
 {
   "success": true,
-  "message": "Wake-on-LAN packet sent"
+  "message": "Startsignal wurde an Gandalf gesendet"
 }
 ```
 
 Der Start-Button ist nur aktiv, wenn Gandalf offline ist. Wenn Gandalf online ist, zeigt der Button `Gandalf läuft bereits`.
+
+## Online-Status
+
+Der Online-Status wird ueber die konfigurierte IP-Adresse geprueft:
+
+```bash
+ping 172.16.10.250
+```
+
+Wenn Gandalf ICMP/Ping blockiert, bleibt die Anzeige offline, obwohl der Rechner eventuell laeuft. Dann muss Ping auf Gandalf oder in der Firewall erlaubt werden.
 
 ## Dienst-Links
 

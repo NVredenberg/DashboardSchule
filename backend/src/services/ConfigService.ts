@@ -67,6 +67,8 @@ export class ConfigService {
       Number.isInteger(config.refreshInterval) &&
       config.refreshInterval > 0 &&
       this.isValidOptionalString(config.broadcastAddress) &&
+      this.isValidOptionalPositiveInteger(config.onlineCheckTimeoutMs) &&
+      this.isValidOptionalString(config.wakeCommand) &&
       this.isValidOptionalPort(config.wakePort)
     );
   }
@@ -77,6 +79,10 @@ export class ConfigService {
 
   private isValidOptionalString(value: unknown): boolean {
     return value === undefined || this.isNonEmptyString(value);
+  }
+
+  private isValidOptionalPositiveInteger(value: unknown): boolean {
+    return value === undefined || (typeof value === 'number' && Number.isInteger(value) && value > 0);
   }
 
   private isValidOptionalPort(value: unknown): boolean {
