@@ -6,7 +6,7 @@ const serviceBaseUrl = appConfig.serviceBaseUrl ?? defaultServiceBaseUrl;
 
 const createServiceHref = (port: number): string => `${serviceBaseUrl}:${port}`;
 
-export const serviceTestData: readonly ServiceItem[] = [
+export const defaultServiceTiles: readonly ServiceItem[] = [
   {
     href: createServiceHref(8080),
     icon: 'ai',

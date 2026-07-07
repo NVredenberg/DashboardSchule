@@ -65,12 +65,24 @@ export class ConfigService {
       this.isNonEmptyString(config.ip) &&
       this.isNonEmptyString(config.mac) &&
       Number.isInteger(config.refreshInterval) &&
-      config.refreshInterval > 0
+      config.refreshInterval > 0 &&
+      this.isValidOptionalString(config.broadcastAddress) &&
+      this.isValidOptionalPort(config.wakePort)
     );
   }
 
   private isNonEmptyString(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
   }
-}
 
+  private isValidOptionalString(value: unknown): boolean {
+    return value === undefined || this.isNonEmptyString(value);
+  }
+
+  private isValidOptionalPort(value: unknown): boolean {
+    return (
+      value === undefined ||
+      (typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 65535)
+    );
+  }
+}

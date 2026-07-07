@@ -28,12 +28,14 @@ Die Serverdaten liegen in `backend/config/server.json`.
 {
   "serverName": "Gandalf",
   "ip": "172.16.10.250",
+  "broadcastAddress": "172.16.10.255",
   "mac": "b4:2e:99:47:f3:7f",
-  "refreshInterval": 10000
+  "refreshInterval": 10000,
+  "wakePort": 9
 }
 ```
 
-Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Zielserver Gandalf.
+Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Zielserver Gandalf. `broadcastAddress` und `wakePort` steuern, wohin das Startsignal gesendet wird. Wenn keine Broadcast-Adresse gesetzt ist, leitet das Backend sie aus der Gandalf-IP als `/24`-Adresse ab.
 
 ## Wake-on-LAN
 
@@ -56,7 +58,7 @@ Der Start-Button ist nur aktiv, wenn Gandalf offline ist. Wenn Gandalf online is
 
 ## Dienst-Links
 
-Die Dienst-Kacheln werden im Frontend aus `frontend/src/services/serviceTestData.ts` geladen.
+Die Dienst-Kacheln werden beim ersten Start aus `frontend/src/services/serviceTestData.ts` geladen. Danach koennen sie direkt im Dashboard hinzugefuegt, bearbeitet und geloescht werden. Die Anpassungen werden lokal im Browser gespeichert.
 
 Standardmaessig werden die Links mit dem aktuellen Host und diesen Ports gebildet:
 
@@ -71,6 +73,8 @@ Falls ein fester Host genutzt werden soll, kann `VITE_SERVICE_BASE_URL` gesetzt 
 ```bash
 VITE_SERVICE_BASE_URL=http://172.16.10.250
 ```
+
+Diese Variable beeinflusst nur die Standard-Kacheln beim ersten Laden. Spaetere Aenderungen im Dashboard bleiben im lokalen Browser-Speicher erhalten.
 
 ## Lokale Entwicklung
 

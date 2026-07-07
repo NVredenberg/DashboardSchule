@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
+import { useState } from 'react';
 
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -8,6 +10,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import StorageIcon from '@mui/icons-material/Storage';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -15,13 +18,14 @@ import { styled } from '@mui/material/styles';
 
 import { ActionButtons } from '../components/ActionButtons';
 import { ServiceCard } from '../components/ServiceCard';
+import { ServiceTileDialog, type ServiceTileFormValue } from '../components/ServiceTileDialog';
 import { StatusCard } from '../components/StatusCard';
 import { appConfig } from '../config/appConfig';
+import { useServiceTiles } from '../hooks/useServiceTiles';
 import { useServerStatus } from '../hooks/useServerStatus';
 import { dashboardText } from '../i18n/dashboardText';
-import { serviceTestData } from '../services/serviceTestData';
 import { dashboardLayoutTokens } from '../theme/designTokens';
-import type { ServiceIconName } from '../types/Service';
+import type { ServiceIconName, ServiceItem } from '../types/Service';
 
 const serviceIcons: Record<ServiceIconName, ReactElement> = {
   automation: <AccountTreeIcon />,
@@ -56,7 +60,45 @@ const ServicesSection = styled('section')(({ theme }) => ({
   gap: theme.spacing(dashboardLayoutTokens.serviceSectionGap),
 }));
 
+const ServicesHeader = styled(Stack)(({ theme }) => ({
+  alignItems: 'center',
+  flexDirection: 'row',
+  gap: theme.spacing(2),
+  justifyContent: 'space-between',
+
+  [theme.breakpoints.down('sm')]: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+  },
+}));
+
+const EmptyServices = styled(Typography)(({ theme }) => ({
+  border: `${dashboardLayoutTokens.borderWidth}px dashed ${theme.palette.divider}`,
+  borderRadius: theme.shape.borderRadius,
+  color: theme.palette.text.secondary,
+  padding: theme.spacing(3),
+  textAlign: 'center',
+}));
+
+const emptyServiceTile: ServiceTileFormValue = {
+  href: '',
+  icon: 'ai',
+  name: '',
+};
+
+const createServiceTileFormValue = (service: ServiceItem | null): ServiceTileFormValue =>
+  service === null
+    ? emptyServiceTile
+    : {
+        href: service.href,
+        icon: service.icon,
+        name: service.name,
+      };
+
 export function DashboardPage() {
+  const { addService, deleteService, services, updateService } = useServiceTiles();
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const {
     actionInProgress,
     canStart,
@@ -68,6 +110,7 @@ export function DashboardPage() {
     serverName,
     start,
   } = useServerStatus();
+  const isServiceDialogOpen = dialogMode !== null;
 
   const actionItems = [
     {
@@ -83,6 +126,31 @@ export function DashboardPage() {
       onClick: start,
     },
   ] as const;
+
+  const openAddServiceDialog = () => {
+    setSelectedService(null);
+    setDialogMode('add');
+  };
+
+  const openEditServiceDialog = (service: ServiceItem) => {
+    setSelectedService(service);
+    setDialogMode('edit');
+  };
+
+  const closeServiceDialog = () => {
+    setDialogMode(null);
+    setSelectedService(null);
+  };
+
+  const saveServiceTile = (service: ServiceTileFormValue) => {
+    if (dialogMode === 'edit' && selectedService !== null) {
+      updateService(selectedService.id, service);
+    } else {
+      addService(service);
+    }
+
+    closeServiceDialog();
+  };
 
   return (
     <>
@@ -103,21 +171,40 @@ export function DashboardPage() {
         <ActionButtons actions={actionItems} ariaLabel={dashboardText.actions.ariaLabel} />
 
         <ServicesSection>
-          <Typography component="h2" variant="h4">
-            {dashboardText.services.title}
-          </Typography>
-          <ServicesGrid>
-            {serviceTestData.map((service) => (
-              <ServiceCard
-                href={service.href}
-                icon={serviceIcons[service.icon]}
-                key={service.id}
-                name={service.name}
-              />
-            ))}
-          </ServicesGrid>
+          <ServicesHeader>
+            <Typography component="h2" variant="h4">
+              {dashboardText.services.title}
+            </Typography>
+            <Button onClick={openAddServiceDialog} startIcon={<AddIcon />} variant="outlined">
+              {dashboardText.services.add}
+            </Button>
+          </ServicesHeader>
+          {services.length > 0 ? (
+            <ServicesGrid>
+              {services.map((service) => (
+                <ServiceCard
+                  href={service.href}
+                  icon={serviceIcons[service.icon]}
+                  key={service.id}
+                  name={service.name}
+                  onDelete={() => deleteService(service.id)}
+                  onEdit={() => openEditServiceDialog(service)}
+                />
+              ))}
+            </ServicesGrid>
+          ) : (
+            <EmptyServices>{dashboardText.services.empty}</EmptyServices>
+          )}
         </ServicesSection>
       </DashboardStack>
+
+      <ServiceTileDialog
+        initialValue={createServiceTileFormValue(selectedService)}
+        isEditing={dialogMode === 'edit'}
+        onClose={closeServiceDialog}
+        onSubmit={saveServiceTile}
+        open={isServiceDialogOpen}
+      />
 
       <Snackbar
         autoHideDuration={appConfig.snackbarAutoHideDurationMs}

@@ -6,24 +6,32 @@ import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 
 const MAC_ADDRESS_PATTERN = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i;
+const DEFAULT_WAKE_PORT = 9;
+
+type WakeOptions = {
+  address?: string;
+  port: number;
+};
 
 export class WakeOnLanService {
   public async sendMagicPacket(serverConfig: ServerConfig): Promise<StartServerResponse> {
     if (!this.isValidMacAddress(serverConfig.mac)) {
-      throw this.createWakeOnLanError('Invalid MAC address in server configuration');
+      throw this.createWakeOnLanError('Ungueltige MAC-Adresse in der Serverkonfiguration');
     }
 
     try {
-      await this.wake(serverConfig.mac);
+      await this.sendWakePacket(serverConfig.mac, this.getWakeOptions(serverConfig));
 
       logger.info('Wake-on-LAN packet sent', {
+        broadcastAddress: this.getBroadcastAddress(serverConfig),
         serverName: serverConfig.serverName,
         serverIp: serverConfig.ip,
+        wakePort: serverConfig.wakePort ?? DEFAULT_WAKE_PORT,
       });
 
       return {
         success: true,
-        message: 'Wake-on-LAN packet sent',
+        message: 'Startsignal wurde an Gandalf gesendet',
       };
     } catch (error) {
       logger.error('Wake-on-LAN packet failed', {
@@ -32,13 +40,13 @@ export class WakeOnLanService {
         serverIp: serverConfig.ip,
       });
 
-      throw this.createWakeOnLanError('Wake-on-LAN packet could not be sent', error);
+      throw this.createWakeOnLanError('Startsignal konnte nicht gesendet werden', error);
     }
   }
 
-  private wake(macAddress: string): Promise<void> {
+  private sendWakePacket(macAddress: string, options: WakeOptions): Promise<void> {
     return new Promise((resolve, reject) => {
-      wakeOnLan.wake(macAddress, (error?: Error) => {
+      wakeOnLan.wake(macAddress, options, (error?: Error) => {
         if (error) {
           reject(error);
           return;
@@ -47,6 +55,27 @@ export class WakeOnLanService {
         resolve();
       });
     });
+  }
+
+  private getWakeOptions(serverConfig: ServerConfig): WakeOptions {
+    return {
+      address: this.getBroadcastAddress(serverConfig),
+      port: serverConfig.wakePort ?? DEFAULT_WAKE_PORT,
+    };
+  }
+
+  private getBroadcastAddress(serverConfig: ServerConfig): string | undefined {
+    return serverConfig.broadcastAddress ?? this.getDefaultIpv4BroadcastAddress(serverConfig.ip);
+  }
+
+  private getDefaultIpv4BroadcastAddress(ipAddress: string): string | undefined {
+    const octets = ipAddress.split('.');
+
+    if (octets.length !== 4 || !octets.every((octet) => /^\d{1,3}$/.test(octet))) {
+      return undefined;
+    }
+
+    return `${octets[0]}.${octets[1]}.${octets[2]}.255`;
   }
 
   private isValidMacAddress(macAddress: string): boolean {
@@ -60,4 +89,3 @@ export class WakeOnLanService {
     });
   }
 }
-

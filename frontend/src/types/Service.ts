@@ -1,4 +1,6 @@
-export type ServiceIconName = 'ai' | 'automation' | 'container' | 'creative' | 'dns';
+export const serviceIconNames = ['ai', 'automation', 'container', 'creative', 'dns'] as const;
+
+export type ServiceIconName = (typeof serviceIconNames)[number];
 
 export type ServiceItem = {
   href: string;
