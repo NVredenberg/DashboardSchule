@@ -5,6 +5,8 @@ node_modules/
 # Build output
 dist/
 coverage/
+__pycache__/
+*.pyc
 
 # Environment files
 .env

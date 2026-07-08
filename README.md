@@ -16,6 +16,13 @@ docker compose up --build
 
 Die Container laufen im Host-Netzwerk des Raspberry Pi. Der eigentliche Wake-on-LAN-Versand laeuft zusaetzlich ueber einen kleinen Host-Relay, damit das Magic Packet sicher ueber das physische Netzwerk-Interface gesendet wird.
 
+Der Relay muss auf dem Pi separat laufen, bevor der Wake-on-LAN-Button genutzt wird. Er braucht kein npm:
+
+```bash
+cd ~/DashboardSchule
+python3 scripts/wol-relay.py
+```
+
 Danach sind die Oberflaeche und API erreichbar:
 
 - Frontend: `http://localhost:3333`
@@ -46,12 +53,11 @@ Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Z
 
 Das Dashboard startet Gandalf ueber einen kleinen Wake-on-LAN-Relay auf dem Host. Dadurch sendet nicht der Docker-Container das Magic Packet, sondern der Raspberry Pi selbst.
 
-Relay auf dem Host bauen und starten:
+Relay auf dem Host starten, zum Beispiel in einem zweiten Terminal:
 
 ```bash
-npm install
-npm run build -w backend
-npm run wol-relay
+cd ~/DashboardSchule
+python3 scripts/wol-relay.py
 ```
 
 Der Relay lauscht standardmaessig nur lokal auf dem Pi:
@@ -66,7 +72,9 @@ Das Backend ruft diesen Relay ueber `wakeRelayUrl` in `backend/config/server.jso
 wake -a 172.16.10.255 -p 9 b4:2e:99:47:f3:7f
 ```
 
-Der Befehl `wake` kommt aus der Backend-Abhaengigkeit `wake_on_lan`. Wenn der Relay ueber `npm run wol-relay` gestartet wird, ist dieser Befehl auf dem Host ueber die Projekt-Abhaengigkeiten verfuegbar. Wenn stattdessen bewusst der lokal installierte Befehl `wakeonlan` verwendet werden soll, kann `wakeCommand` entsprechend angepasst werden.
+Der Python-Relay sendet das Magic Packet direkt per UDP-Broadcast an `broadcastAddress` und `wakePort`. Dafuer werden auf dem Host keine Node- oder npm-Abhaengigkeiten benoetigt.
+
+`wakeCommand` wird nur noch verwendet, wenn der Relay bewusst deaktiviert wird. Wenn dann bewusst der lokal installierte Befehl `wakeonlan` verwendet werden soll, kann `wakeCommand` entsprechend angepasst werden.
 
 Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/server.json` ein voller Pfad gesetzt werden:
 

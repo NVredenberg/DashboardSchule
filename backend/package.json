@@ -5,11 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "dev:wol-relay": "tsx watch src/wolRelay.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "wol-relay": "node dist/wolRelay.js"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
