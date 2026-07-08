@@ -1,7 +1,7 @@
 {
   "serverName": "Gandalf",
   "ip": "172.16.10.250",
-  "broadcastAddress": "172.16.10.255",
+  "broadcastAddress": "255.255.255.255",
   "mac": "b4:2e:99:47:f3:7f",
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
