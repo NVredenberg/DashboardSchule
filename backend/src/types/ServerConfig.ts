@@ -7,4 +7,5 @@ export type ServerConfig = {
   refreshInterval: number;
   wakeCommand?: string;
   wakePort?: number;
+  wakeRelayUrl?: string;
 };

@@ -14,7 +14,7 @@ Enthaltene Funktionen:
 docker compose up --build
 ```
 
-Die Container laufen im Host-Netzwerk des Raspberry Pi. Dadurch wird das Wake-on-LAN-Paket direkt ueber das physische Netzwerk-Interface gesendet, statt im Docker-Bridge-Netz zu verschwinden.
+Die Container laufen im Host-Netzwerk des Raspberry Pi. Der eigentliche Wake-on-LAN-Versand laeuft zusaetzlich ueber einen kleinen Host-Relay, damit das Magic Packet sicher ueber das physische Netzwerk-Interface gesendet wird.
 
 Danach sind die Oberflaeche und API erreichbar:
 
@@ -35,7 +35,8 @@ Die Serverdaten liegen in `backend/config/server.json`.
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
   "wakeCommand": "wake -a {broadcastAddress} -p {port} {mac}",
-  "wakePort": 9
+  "wakePort": 9,
+  "wakeRelayUrl": "http://127.0.0.1:3011/wake"
 }
 ```
 
@@ -43,13 +44,29 @@ Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Z
 
 ## Wake-on-LAN
 
-Das Backend startet Gandalf mit dem vom Projekt mitgelieferten Befehl:
+Das Dashboard startet Gandalf ueber einen kleinen Wake-on-LAN-Relay auf dem Host. Dadurch sendet nicht der Docker-Container das Magic Packet, sondern der Raspberry Pi selbst.
+
+Relay auf dem Host bauen und starten:
+
+```bash
+npm install
+npm run build -w backend
+npm run wol-relay
+```
+
+Der Relay lauscht standardmaessig nur lokal auf dem Pi:
+
+- Host: `127.0.0.1`
+- Port: `3011`
+- Endpoint: `POST http://127.0.0.1:3011/wake`
+
+Das Backend ruft diesen Relay ueber `wakeRelayUrl` in `backend/config/server.json` auf. Die Gandalf-Verbindungsdaten sind dort passend hinterlegt:
 
 ```bash
 wake -a 172.16.10.255 -p 9 b4:2e:99:47:f3:7f
 ```
 
-Der Befehl `wake` kommt aus der Backend-Abhaengigkeit `wake_on_lan` und ist damit auch im Backend-Container verfuegbar. Wenn stattdessen bewusst der lokal installierte Befehl `wakeonlan` verwendet werden soll, kann `wakeCommand` entsprechend angepasst werden.
+Der Befehl `wake` kommt aus der Backend-Abhaengigkeit `wake_on_lan`. Wenn der Relay ueber `npm run wol-relay` gestartet wird, ist dieser Befehl auf dem Host ueber die Projekt-Abhaengigkeiten verfuegbar. Wenn stattdessen bewusst der lokal installierte Befehl `wakeonlan` verwendet werden soll, kann `wakeCommand` entsprechend angepasst werden.
 
 Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/server.json` ein voller Pfad gesetzt werden:
 
@@ -58,6 +75,10 @@ Falls der Befehl nicht ueber den PATH gefunden wird, kann in `backend/config/ser
   "wakeCommand": "\"C:\\\\Pfad\\\\zu\\\\wakeonlan.exe\" {mac}"
 }
 ```
+
+Wenn der Relay bewusst deaktiviert werden soll, kann `wakeRelayUrl` aus `backend/config/server.json` entfernt werden. Dann fuehrt das Backend wieder direkt `wakeCommand` aus.
+
+Die Relay-Adresse kann alternativ per `WOL_RELAY_URL` ueberschrieben werden. Fuer den Raspberry Pi mit Host-Netzwerk bleibt `http://127.0.0.1:3011/wake` passend.
 
 Das Dashboard ruft diesen Endpunkt auf:
 

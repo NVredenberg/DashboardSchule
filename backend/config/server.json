@@ -6,5 +6,6 @@
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
   "wakeCommand": "wake -a {broadcastAddress} -p {port} {mac}",
-  "wakePort": 9
+  "wakePort": 9,
+  "wakeRelayUrl": "http://127.0.0.1:3011/wake"
 }

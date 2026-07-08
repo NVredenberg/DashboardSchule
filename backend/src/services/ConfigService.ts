@@ -2,9 +2,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import dotenv from 'dotenv';
+
 import type { ServerConfig } from '../types/ServerConfig.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
+
+dotenv.config();
 
 type PackageJson = {
   version: string;
@@ -42,13 +46,28 @@ export class ConfigService {
   }
 
   private loadServerConfig(serverConfigPath: string): ServerConfig {
-    const serverConfig = this.readJsonFile<ServerConfig>(serverConfigPath);
+    const serverConfig = this.applyEnvironmentOverrides(
+      this.readJsonFile<ServerConfig>(serverConfigPath),
+    );
 
     if (!this.isValidServerConfig(serverConfig)) {
       throw new AppError('Invalid server configuration', 500);
     }
 
     return serverConfig;
+  }
+
+  private applyEnvironmentOverrides(serverConfig: ServerConfig): ServerConfig {
+    const wakeRelayUrl = process.env.WOL_RELAY_URL?.trim();
+
+    if (!wakeRelayUrl) {
+      return serverConfig;
+    }
+
+    return {
+      ...serverConfig,
+      wakeRelayUrl,
+    };
   }
 
   private readJsonFile<T>(filePath: string): T {
@@ -69,7 +88,8 @@ export class ConfigService {
       this.isValidOptionalString(config.broadcastAddress) &&
       this.isValidOptionalPositiveInteger(config.onlineCheckTimeoutMs) &&
       this.isValidOptionalString(config.wakeCommand) &&
-      this.isValidOptionalPort(config.wakePort)
+      this.isValidOptionalPort(config.wakePort) &&
+      this.isValidOptionalHttpUrl(config.wakeRelayUrl)
     );
   }
 
@@ -81,8 +101,28 @@ export class ConfigService {
     return value === undefined || this.isNonEmptyString(value);
   }
 
+  private isValidOptionalHttpUrl(value: unknown): boolean {
+    if (value === undefined) {
+      return true;
+    }
+
+    if (!this.isNonEmptyString(value)) {
+      return false;
+    }
+
+    try {
+      const url = new URL(value);
+
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
   private isValidOptionalPositiveInteger(value: unknown): boolean {
-    return value === undefined || (typeof value === 'number' && Number.isInteger(value) && value > 0);
+    return (
+      value === undefined || (typeof value === 'number' && Number.isInteger(value) && value > 0)
+    );
   }
 
   private isValidOptionalPort(value: unknown): boolean {

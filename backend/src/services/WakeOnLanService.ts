@@ -11,21 +11,48 @@ const MAC_ADDRESS_PATTERN = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i;
 const DEFAULT_WAKE_COMMAND = 'wake -a {broadcastAddress} -p {port} {mac}';
 const DEFAULT_WAKE_PORT = 9;
 const WAKE_COMMAND_TIMEOUT_MS = 10000;
+const WAKE_RELAY_TIMEOUT_MS = 10000;
+
+type WakeRelayRequestBody = {
+  broadcastAddress: string;
+  mac: string;
+  serverIp: string;
+  serverName: string;
+  wakePort: number;
+};
+
+type WakeRelayResponseBody = {
+  error?: {
+    message?: string;
+  };
+  message?: string;
+  success?: boolean;
+};
 
 const execAsync = promisify(exec);
 
 export class WakeOnLanService {
   public async sendMagicPacket(serverConfig: ServerConfig): Promise<StartServerResponse> {
-    if (!this.isValidMacAddress(serverConfig.mac)) {
-      throw this.createWakeOnLanError('Ungueltige MAC-Adresse in der Serverkonfiguration');
+    this.assertValidMacAddress(serverConfig.mac);
+
+    const wakeRelayUrl = serverConfig.wakeRelayUrl?.trim();
+
+    if (wakeRelayUrl) {
+      return this.sendWakeRelayRequest(serverConfig, wakeRelayUrl);
     }
+
+    return this.sendMagicPacketDirect(serverConfig);
+  }
+
+  public async sendMagicPacketDirect(serverConfig: ServerConfig): Promise<StartServerResponse> {
+    this.assertValidMacAddress(serverConfig.mac);
 
     const command = this.buildWakeCommand(serverConfig);
 
     try {
       await this.sendWakeCommand(command);
 
-      logger.info('Wake-on-LAN packet sent', {
+      logger.info('Wake-on-LAN packet sent directly', {
         command,
         serverName: serverConfig.serverName,
         serverIp: serverConfig.ip,
@@ -47,13 +74,78 @@ export class WakeOnLanService {
     }
   }
 
+  private async sendWakeRelayRequest(
+    serverConfig: ServerConfig,
+    wakeRelayUrl: string,
+  ): Promise<StartServerResponse> {
+    if (!this.isValidMacAddress(serverConfig.mac)) {
+      throw this.createWakeOnLanError('Ungueltige MAC-Adresse in der Serverkonfiguration');
+    }
+
+    const requestBody: WakeRelayRequestBody = {
+      broadcastAddress: this.getBroadcastAddress(serverConfig) ?? '255.255.255.255',
+      mac: serverConfig.mac,
+      serverIp: serverConfig.ip,
+      serverName: serverConfig.serverName,
+      wakePort: serverConfig.wakePort ?? DEFAULT_WAKE_PORT,
+    };
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), WAKE_RELAY_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(wakeRelayUrl, {
+        body: JSON.stringify(requestBody),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+        signal: abortController.signal,
+      });
+      const relayResponse = await this.parseWakeRelayResponse(response);
+
+      if (!response.ok) {
+        throw new Error(this.getWakeRelayResponseMessage(response, relayResponse));
+      }
+
+      logger.info('Wake-on-LAN relay accepted request', {
+        wakeRelayUrl,
+        serverName: serverConfig.serverName,
+        serverIp: serverConfig.ip,
+      });
+
+      return {
+        success: relayResponse.success ?? true,
+        message: relayResponse.message ?? 'Startsignal wurde an Gandalf gesendet',
+      };
+    } catch (error) {
+      logger.error('Wake-on-LAN relay request failed', {
+        error: error instanceof Error ? error.message : String(error),
+        serverName: serverConfig.serverName,
+        serverIp: serverConfig.ip,
+        wakeRelayUrl,
+      });
+
+      throw this.createWakeOnLanError(this.getWakeRelayFailureMessage(error), error);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private assertValidMacAddress(macAddress: string): void {
+    if (!this.isValidMacAddress(macAddress)) {
+      throw this.createWakeOnLanError('Ungueltige MAC-Adresse in der Serverkonfiguration');
+    }
+  }
+
   private buildWakeCommand(serverConfig: ServerConfig): string {
     const wakeCommand = serverConfig.wakeCommand?.trim() || DEFAULT_WAKE_COMMAND;
     const escapedMacAddress = this.escapeShellArgument(serverConfig.mac);
     const escapedBroadcastAddress = this.escapeShellArgument(
       this.getBroadcastAddress(serverConfig) ?? '255.255.255.255',
     );
-    const escapedWakePort = this.escapeShellArgument(String(serverConfig.wakePort ?? DEFAULT_WAKE_PORT));
+    const escapedWakePort = this.escapeShellArgument(
+      String(serverConfig.wakePort ?? DEFAULT_WAKE_PORT),
+    );
 
     if (
       wakeCommand.includes('{broadcastAddress}') ||
@@ -74,6 +166,22 @@ export class WakeOnLanService {
       timeout: WAKE_COMMAND_TIMEOUT_MS,
       windowsHide: true,
     });
+  }
+
+  private async parseWakeRelayResponse(response: Response): Promise<WakeRelayResponseBody> {
+    const responseText = await response.text();
+
+    if (responseText.trim().length === 0) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(responseText) as WakeRelayResponseBody;
+    } catch {
+      return {
+        message: responseText,
+      };
+    }
   }
 
   private isValidMacAddress(macAddress: string): boolean {
@@ -118,6 +226,29 @@ export class WakeOnLanService {
     }
 
     return `Startsignal konnte nicht gesendet werden: ${detail}`;
+  }
+
+  private getWakeRelayFailureMessage(error: unknown): string {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return 'Startsignal konnte nicht gesendet werden: Wake-on-LAN-Relay hat nicht rechtzeitig geantwortet';
+    }
+
+    if (error instanceof Error && error.message.length > 0) {
+      return `Startsignal konnte nicht gesendet werden: ${error.message}`;
+    }
+
+    return 'Startsignal konnte nicht gesendet werden';
+  }
+
+  private getWakeRelayResponseMessage(
+    response: Response,
+    relayResponse: WakeRelayResponseBody,
+  ): string {
+    return (
+      relayResponse.error?.message ??
+      relayResponse.message ??
+      `Wake-on-LAN-Relay antwortete mit Status ${response.status}`
+    );
   }
 
   private getCommandErrorDetail(error: unknown): string | null {
