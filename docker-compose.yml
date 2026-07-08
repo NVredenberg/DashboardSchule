@@ -1,8 +1,36 @@
 services:
+  wol-relay:
+    image: python:3.12-alpine
+    working_dir: /app
+    command: ['python3', 'scripts/wol-relay.py']
+    environment:
+      WOL_RELAY_HOST: ${WOL_RELAY_HOST:-127.0.0.1}
+      WOL_RELAY_PORT: ${WOL_RELAY_PORT:-3011}
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./backend/config:/app/backend/config:ro
+    network_mode: host
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python3',
+          '-c',
+          "import os, urllib.request; host=os.environ.get('WOL_RELAY_HOST','127.0.0.1'); port=os.environ.get('WOL_RELAY_PORT','3011'); urllib.request.urlopen(f'http://{host}:{port}/health', timeout=2).read()",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 3s
+    restart: unless-stopped
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    depends_on:
+      wol-relay:
+        condition: service_healthy
     environment:
       PORT: ${PORT:-3001}
       WOL_RELAY_URL: ${WOL_RELAY_URL:-http://127.0.0.1:3011/wake}

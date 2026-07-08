@@ -16,12 +16,7 @@ docker compose up --build
 
 Die Container laufen im Host-Netzwerk des Raspberry Pi. Der eigentliche Wake-on-LAN-Versand laeuft zusaetzlich ueber einen kleinen Host-Relay, damit das Magic Packet sicher ueber das physische Netzwerk-Interface gesendet wird.
 
-Der Relay muss auf dem Pi separat laufen, bevor der Wake-on-LAN-Button genutzt wird. Er braucht kein npm:
-
-```bash
-cd ~/DashboardSchule
-python3 scripts/wol-relay.py
-```
+`docker compose up --build` startet automatisch drei Services: `wol-relay`, `backend` und `frontend`. Der Relay wird beim Beenden des Compose-Stacks ebenfalls gestoppt.
 
 Danach sind die Oberflaeche und API erreichbar:
 
@@ -37,7 +32,7 @@ Die Serverdaten liegen in `backend/config/server.json`.
 {
   "serverName": "Gandalf",
   "ip": "172.16.10.250",
-  "broadcastAddress": "172.16.10.255",
+  "broadcastAddress": "255.255.255.255",
   "mac": "b4:2e:99:47:f3:7f",
   "onlineCheckTimeoutMs": 1500,
   "refreshInterval": 10000,
@@ -53,11 +48,10 @@ Die MAC-Adresse wird fuer Wake-on-LAN verwendet. Die IP-Adresse beschreibt den Z
 
 Das Dashboard startet Gandalf ueber einen kleinen Wake-on-LAN-Relay auf dem Host. Dadurch sendet nicht der Docker-Container das Magic Packet, sondern der Raspberry Pi selbst.
 
-Relay auf dem Host starten, zum Beispiel in einem zweiten Terminal:
+Der Relay ist als eigener Docker-Compose-Service eingebunden und wird automatisch gestartet:
 
 ```bash
-cd ~/DashboardSchule
-python3 scripts/wol-relay.py
+docker compose up --build
 ```
 
 Der Relay lauscht standardmaessig nur lokal auf dem Pi:
@@ -69,10 +63,16 @@ Der Relay lauscht standardmaessig nur lokal auf dem Pi:
 Das Backend ruft diesen Relay ueber `wakeRelayUrl` in `backend/config/server.json` auf. Die Gandalf-Verbindungsdaten sind dort passend hinterlegt:
 
 ```bash
-wake -a 172.16.10.255 -p 9 b4:2e:99:47:f3:7f
+wakeonlan b4:2e:99:47:f3:7f
 ```
 
-Der Python-Relay sendet das Magic Packet direkt per UDP-Broadcast an `broadcastAddress` und `wakePort`. Dafuer werden auf dem Host keine Node- oder npm-Abhaengigkeiten benoetigt.
+Der Python-Relay sendet das Magic Packet direkt per UDP-Broadcast an `broadcastAddress` und `wakePort`. Da `broadcastAddress` auf `255.255.255.255` steht, entspricht das dem funktionierenden `wakeonlan b4:2e:99:47:f3:7f`. Dafuer werden auf dem Host keine Node- oder npm-Abhaengigkeiten benoetigt.
+
+Zum direkten Test des Relays:
+
+```bash
+curl -X POST http://127.0.0.1:3011/wake
+```
 
 `wakeCommand` wird nur noch verwendet, wenn der Relay bewusst deaktiviert wird. Wenn dann bewusst der lokal installierte Befehl `wakeonlan` verwendet werden soll, kann `wakeCommand` entsprechend angepasst werden.
 
