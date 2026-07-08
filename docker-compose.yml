@@ -5,8 +5,7 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       PORT: ${PORT:-3001}
-    ports:
-      - "${BACKEND_PORT:-3001}:3001"
+    network_mode: host
 
   frontend:
     build:
@@ -14,6 +13,4 @@ services:
       dockerfile: frontend/Dockerfile
     depends_on:
       - backend
-    ports:
-      - "${FRONTEND_PORT:-3333}:3333"
-
+    network_mode: host

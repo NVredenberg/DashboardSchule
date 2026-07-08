@@ -14,6 +14,8 @@ Enthaltene Funktionen:
 docker compose up --build
 ```
 
+Die Container laufen im Host-Netzwerk des Raspberry Pi. Dadurch wird das Wake-on-LAN-Paket direkt ueber das physische Netzwerk-Interface gesendet, statt im Docker-Bridge-Netz zu verschwinden.
+
 Danach sind die Oberflaeche und API erreichbar:
 
 - Frontend: `http://localhost:3333`
