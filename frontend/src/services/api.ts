@@ -1,5 +1,6 @@
 import { appConfig } from '../config/appConfig';
 import { dashboardText } from '../i18n/dashboardText';
+import type { ServiceItem } from '../types/Service';
 import type { ServerActionResponse, ServerStatus } from '../types/Server';
 
 type ApiErrorResponse = {
@@ -61,3 +62,14 @@ const postServerAction = async (path: string): Promise<ServerActionResponse> => 
 export const getServerStatus = (): Promise<ServerStatus> => requestJson<ServerStatus>('/server');
 
 export const startServer = (): Promise<ServerActionResponse> => postServerAction('/server/start');
+
+export const getServiceTiles = (): Promise<{ services: ServiceItem[] }> =>
+  requestJson<{ services: ServiceItem[] }>('/services');
+
+export const saveServiceTiles = (services: ServiceItem[]): Promise<{ services: ServiceItem[] }> =>
+  requestJson<{ services: ServiceItem[] }>('/services', {
+    body: JSON.stringify({
+      services,
+    }),
+    method: 'PUT',
+  });

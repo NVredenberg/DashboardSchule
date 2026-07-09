@@ -46,6 +46,7 @@ export const dashboardText = {
     delete: 'Kachel löschen',
     edit: 'Kachel bearbeiten',
     empty: 'Keine Kacheln angelegt',
+    loading: 'Kacheln werden geladen',
     open: 'Dienst öffnen',
     title: 'Dienste',
   },

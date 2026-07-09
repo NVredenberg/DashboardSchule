@@ -96,7 +96,14 @@ const createServiceTileFormValue = (service: ServiceItem | null): ServiceTileFor
       };
 
 export function DashboardPage() {
-  const { addService, deleteService, services, updateService } = useServiceTiles();
+  const {
+    addService,
+    deleteService,
+    error: serviceTilesError,
+    isLoading: areServiceTilesLoading,
+    services,
+    updateService,
+  } = useServiceTiles();
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const {
@@ -175,11 +182,21 @@ export function DashboardPage() {
             <Typography component="h2" variant="h4">
               {dashboardText.services.title}
             </Typography>
-            <Button onClick={openAddServiceDialog} startIcon={<AddIcon />} variant="outlined">
+            <Button
+              disabled={areServiceTilesLoading}
+              onClick={openAddServiceDialog}
+              startIcon={<AddIcon />}
+              variant="outlined"
+            >
               {dashboardText.services.add}
             </Button>
           </ServicesHeader>
-          {services.length > 0 ? (
+          {serviceTilesError !== null ? (
+            <Alert severity="error">{serviceTilesError}</Alert>
+          ) : null}
+          {areServiceTilesLoading ? (
+            <EmptyServices>{dashboardText.services.loading}</EmptyServices>
+          ) : services.length > 0 ? (
             <ServicesGrid>
               {services.map((service) => (
                 <ServiceCard

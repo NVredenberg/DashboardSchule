@@ -35,6 +35,8 @@ services:
       PORT: ${PORT:-3001}
       WOL_RELAY_URL: ${WOL_RELAY_URL:-http://127.0.0.1:3011/wake}
     network_mode: host
+    volumes:
+      - ./backend/config:/app/backend/config
 
   frontend:
     build:

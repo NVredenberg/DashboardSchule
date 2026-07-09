@@ -117,23 +117,9 @@ Wenn Gandalf ICMP/Ping blockiert, bleibt die Anzeige offline, obwohl der Rechner
 
 ## Dienst-Links
 
-Die Dienst-Kacheln werden beim ersten Start aus `frontend/src/services/serviceTestData.ts` geladen. Danach koennen sie direkt im Dashboard hinzugefuegt, bearbeitet und geloescht werden. Die Anpassungen werden lokal im Browser gespeichert.
+Die Dienst-Kacheln werden zentral ueber das Backend geladen und in `backend/config/service-tiles.json` gespeichert. Dadurch sehen alle Endgeraete dieselben Kacheln. Aenderungen im Dashboard werden auf dem Server gespeichert und von anderen geoeffneten Dashboards automatisch nachgeladen.
 
-Standardmaessig werden die Links mit dem aktuellen Host und diesen Ports gebildet:
-
-- OpenWebUI: `8080`
-- ComfyUI: `8188`
-- n8n: `5678`
-- Portainer: `9000`
-- Pi-hole: `8081`
-
-Falls ein fester Host genutzt werden soll, kann `VITE_SERVICE_BASE_URL` gesetzt werden:
-
-```bash
-VITE_SERVICE_BASE_URL=http://172.16.10.250
-```
-
-Diese Variable beeinflusst nur die Standard-Kacheln beim ersten Laden. Spaetere Aenderungen im Dashboard bleiben im lokalen Browser-Speicher erhalten.
+Beim ersten Start ist die Kachel-Liste leer. Alte lokal gespeicherte Browser-Kacheln werden einmalig uebernommen, wenn die zentrale Liste noch leer ist. Die frueheren voreingestellten Beispielkacheln werden dabei herausgefiltert.
 
 ## Lokale Entwicklung
 
